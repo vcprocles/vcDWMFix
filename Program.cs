@@ -11,43 +11,57 @@ namespace vcDWMFix
 
         static void Main(string[] args)
         {
-            const int loopTimer = 10000; //где-то 10 сек
-            const int memtoKill = 1000000000; //где-то 1 гб
-            while (true) //бесконечный цикл, фу
+            const int loopTimer = 10000; //10 sec.
+            const int memtoKill = 1073741824; //1 GiB
+            while (true)
             {
-                DWMLoop(memtoKill); 
+                DWMLoop(memtoKill);
                 Thread.Sleep(loopTimer);
             }
         }
         static void DWMLoop(int memToKill)
         {
-            Process killDWM = Process.GetProcessesByName("dwm")[0];//Получаем процесс как экземпляр класса.
-                                                                   //Хватаю только первый процесс в массиве,
-                                                                   //хотя на самом деле их в системе может быть и несколько
-            long processPagedMemory = killDWM.PagedMemorySize64; //Получаем выделенную процессом память.
-                                                                 //Можно было бы встроить это в if, но и так сойдёт
-            if (processPagedMemory >= memToKill) 
+            Process killDWM = Process.GetProcessesByName("dwm")[0];//Use only the first process in the array,
+                                                                   //even though there may be multiple of them (e.g. on shared family PC)
+            long processPagedMemory = killDWM.PagedMemorySize64; //Getting process paged memory size
+            if (processPagedMemory >= memToKill)
             {
-                //пишем в лог и прибиваем процесс
-                log.WriteToLog(DateTime.Now.ToString() + " : " + System.Reflection.MethodBase.GetCurrentMethod().Name + " - right now allocated " + (processPagedMemory / 1048576) + "MiB, killing");
+                //Making a log entry and killing the process. System restarts it automatically.
+                log.WriteToLog("right now DWM allocated " + (processPagedMemory / 1048576) + "MiB, killing",2);
                 killDWM.Kill();
             }
 
         }
     }
-    class LogWriter //Простенький класс для написания логов. Пишет в ту же директорию, где лежит программа.
-                    //Изначально я писал это под .net 5 и экземляр логгера там создаётся только при первом прибитии процесса,
-                    //это немного экономит память. Не знаю как будет вести себя этот проект на .net 4.7
+    class LogWriter //ported it to old C# version from my other project, so this program can run using system preinstalled .NET on W10
     {
+        /*
+         * Log Levels
+         * 0 - info
+         * 1 - warnings
+         * 2 - important warnings
+         * 3 - errors
+         */
+        int sLogLevel = 2;
+        readonly String logLocation;
+
         public LogWriter()
         {
             String fullPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             String dir = System.IO.Path.GetDirectoryName(fullPath);
-            String logFullPath = dir + "\\log-" + DateTime.Now.ToString().Replace(':', '-') + ".txt";
+            String logFullPath = dir + "\\log-" + DateTime.Now.ToString().Replace(':', '-') + ".txt";//make a file in the same directory where an executable is
             logLocation = logFullPath;
+            WriteToLog("Starting log", 0);
         }
-        String logLocation;
-        public void WriteToLog(String text)
+        public void WriteToLog(String Message, int logLevel)
+        {
+            StackTrace stackTrace = new StackTrace();
+            String callerFunction = stackTrace.GetFrame(1).GetMethod().Name;
+            String timeNow = TimeNow();
+            String composedMessage = timeNow + " - " + callerFunction + ": " + Message;
+            if (logLevel >= sLogLevel) SWWrite(composedMessage);
+        }
+        private void SWWrite(String text)
         {
             using (StreamWriter writeLog = new StreamWriter(logLocation, true))
             {
@@ -55,5 +69,7 @@ namespace vcDWMFix
                 writeLog.Flush();
             }
         }
+        private string TimeNow() => DateTime.Now.ToString();
     }
 }
+
