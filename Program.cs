@@ -7,8 +7,7 @@ namespace vcDWMFix
 {
     class Program
     {
-        static LogWriter log = new LogWriter();//логгер чтобы запоминать каждый случай когда пришлось чистить ОЗУ от этого недоразумения
-
+        static LogWriter log = new LogWriter();//create a logger
         static void Main(string[] args)
         {
             const int loopTimer = 10000; //10 sec.
@@ -27,41 +26,28 @@ namespace vcDWMFix
             if (processPagedMemory >= memToKill)
             {
                 //Making a log entry and killing the process. System restarts it automatically.
-                log.WriteToLog("right now DWM allocated " + (processPagedMemory / 1048576) + "MiB, killing",2);
+                log.WriteToLog("right now DWM allocated " + (processPagedMemory / 1048576) + "MiB, killing");
                 killDWM.Kill();
             }
 
         }
     }
-    class LogWriter //ported it to old C# version from my other project, so this program can run using system preinstalled .NET on W10
+    class LogWriter
     {
-        /*
-         * Log Levels
-         * 0 - info
-         * 1 - warnings
-         * 2 - important warnings
-         * 3 - errors
-         */
-        int sLogLevel = 2;
-        readonly String logLocation;
+        readonly string logLocation = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "\\log-" + TimeNow.Replace(':', '-') + ".txt";
 
         public LogWriter()
         {
-            String fullPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            String dir = System.IO.Path.GetDirectoryName(fullPath);
-            String logFullPath = dir + "\\log-" + DateTime.Now.ToString().Replace(':', '-') + ".txt";//make a file in the same directory where an executable is
-            logLocation = logFullPath;
-            WriteToLog("Starting log", 0);
+            WriteToLog("Starting log");
         }
-        public void WriteToLog(String Message, int logLevel)
+        public void WriteToLog(string Message)
         {
             StackTrace stackTrace = new StackTrace();
-            String callerFunction = stackTrace.GetFrame(1).GetMethod().Name;
-            String timeNow = TimeNow();
-            String composedMessage = timeNow + " - " + callerFunction + ": " + Message;
-            if (logLevel >= sLogLevel) SWWrite(composedMessage);
+            string callerFunction = stackTrace.GetFrame(1).GetMethod().Name;
+            string composedMessage = TimeNow + " - " + callerFunction + ": " + Message;
+            SWWrite(composedMessage);
         }
-        private void SWWrite(String text)
+        private void SWWrite(string text)
         {
             using (StreamWriter writeLog = new StreamWriter(logLocation, true))
             {
@@ -69,7 +55,7 @@ namespace vcDWMFix
                 writeLog.Flush();
             }
         }
-        private string TimeNow() => DateTime.Now.ToString();
+        static string TimeNow => DateTime.Now.ToString();
     }
 }
 
